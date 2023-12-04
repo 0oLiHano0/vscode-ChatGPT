@@ -454,7 +454,7 @@ async function chatUI(context: vscode.ExtensionContext) {
 
     //let model = "gpt-4";
     async function getDataFromHttps(prompt: string,model: string) {
-      const url = 'https://api.openai.com/v1/chat/completions';
+      const url = 'https://han53naoai.openai.azure.com/openai/deployments/HanGPT-4-0613/chat/completions?api-version=2023-07-01-preview';
       console.log("model = " + model);
 
       var processingQuestion = `前两轮的问题和回答:\`\`\``;

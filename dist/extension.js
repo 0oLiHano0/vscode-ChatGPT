@@ -452,7 +452,7 @@ async function chatUI(context) {
         }
         //let model = "gpt-4";
         async function getDataFromHttps(prompt, model) {
-            const url = 'https://api.openai.com/v1/chat/completions';
+            const url = 'https://han53naoai.openai.azure.com/openai/deployments/HanGPT-4-0613/chat/completions?api-version=2023-07-01-preview';
             console.log("model = " + model);
             var processingQuestion = `前两轮的问题和回答:\`\`\``;
             if (chatContext != null) {
@@ -8271,6 +8271,64 @@ Global.ChatGPT_KEY = "fengzheng_chatgpt_api_key";
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+const vscode = __webpack_require__(1);
+async function editorAction(context) {
+    let disposable = vscode.commands.registerCommand('fengzheng.editor.getSelectedText', () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            vscode.window.showErrorMessage('No editor is active');
+            return;
+        }
+        const selection = editor.selection;
+        const selectedText = editor.document.getText(selection);
+        // vscode.window.showInformationMessage(`Selected Text: ${selectedText}`);
+        const range = new vscode.Range(selection.start, selection.end);
+        const position = selection.active;
+        const hover = new vscode.Hover('This is a hover message');
+        vscode.Hover;
+    });
+    context.subscriptions.push(disposable);
+    vscode.commands.registerCommand('fengzheng.bitGPT.explain', () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            vscode.window.showErrorMessage('No editor is active');
+            return;
+        }
+        const selection = editor.selection;
+        const selectedText = editor.document.getText(selection);
+        //vscode.window.showInformationMessage(`Selected Text: ${selectedText}`);
+        const panel = vscode.window.createWebviewPanel('myCustomPanel', // 标识面板的唯一 ID
+        'My Custom Panel', // 面板的标题
+        vscode.ViewColumn.Active, // 面板打开的位置
+        {
+            enableScripts: true // 启用 webview 中的脚本
+        });
+        // 设置面板的 HTML 内容
+        panel.webview.html = `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>My Custom Panel</title>
+            </head>
+            <body>
+              <h1>Hello, World!</h1>
+            </body>
+            </html>
+          `;
+    });
+}
+exports["default"] = editorAction;
+
+
+/***/ }),
+/* 45 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BitGPTViewProvider = void 0;
 const vscode = __webpack_require__(1);
 const axios_1 = __webpack_require__(3);
@@ -8826,64 +8884,6 @@ exports.BitGPTViewProvider = BitGPTViewProvider;
 BitGPTViewProvider.viewType = 'bitGPT.chat';
 
 
-/***/ }),
-/* 45 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-const vscode = __webpack_require__(1);
-async function editorAction(context) {
-    let disposable = vscode.commands.registerCommand('fengzheng.editor.getSelectedText', () => {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            vscode.window.showErrorMessage('No editor is active');
-            return;
-        }
-        const selection = editor.selection;
-        const selectedText = editor.document.getText(selection);
-        // vscode.window.showInformationMessage(`Selected Text: ${selectedText}`);
-        const range = new vscode.Range(selection.start, selection.end);
-        const position = selection.active;
-        const hover = new vscode.Hover('This is a hover message');
-        vscode.Hover;
-    });
-    context.subscriptions.push(disposable);
-    vscode.commands.registerCommand('fengzheng.bitGPT.explain', () => {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            vscode.window.showErrorMessage('No editor is active');
-            return;
-        }
-        const selection = editor.selection;
-        const selectedText = editor.document.getText(selection);
-        //vscode.window.showInformationMessage(`Selected Text: ${selectedText}`);
-        const panel = vscode.window.createWebviewPanel('myCustomPanel', // 标识面板的唯一 ID
-        'My Custom Panel', // 面板的标题
-        vscode.ViewColumn.Active, // 面板打开的位置
-        {
-            enableScripts: true // 启用 webview 中的脚本
-        });
-        // 设置面板的 HTML 内容
-        panel.webview.html = `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>My Custom Panel</title>
-            </head>
-            <body>
-              <h1>Hello, World!</h1>
-            </body>
-            </html>
-          `;
-    });
-}
-exports["default"] = editorAction;
-
-
 /***/ })
 /******/ 	]);
 /************************************************************************/
@@ -8924,9 +8924,9 @@ exports.deactivate = exports.activate = void 0;
 // Import the module and reference it with the alias vscode in your code below
 const vscode = __webpack_require__(1);
 const chat_1 = __webpack_require__(2);
-const eidorAction_1 = __webpack_require__(45);
+const eidorAction_1 = __webpack_require__(44);
 const constant_1 = __webpack_require__(43);
-const sidebarWebview_1 = __webpack_require__(44);
+const sidebarWebview_1 = __webpack_require__(45);
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 let statusBarItem;
