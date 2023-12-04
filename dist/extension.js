@@ -17,7 +17,6 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const vscode = __webpack_require__(1);
 const axios_1 = __webpack_require__(3);
 const constant_1 = __webpack_require__(43);
-const stream_1 = __webpack_require__(7);
 const path = __webpack_require__(9);
 const getContent = (list = []) => {
     let html = `<!DOCTYPE html>
@@ -409,15 +408,11 @@ async function chatUI(context) {
         currentPanel.reveal(vscode.ViewColumn.One);
     }
     else {
-        currentPanel = vscode.window.createWebviewPanel('chatgpt', // Identifies the type of the webview. Used internally
-        'ChatGPT', // Title of the panel displayed to the user
-        vscode.ViewColumn.One, // Editor column to show the new webview panel in.
-        {
+        currentPanel = vscode.window.createWebviewPanel('chatgpt', 'ChatGPT', vscode.ViewColumn.One, {
             enableScripts: true,
             retainContextWhenHidden: true,
             localResourceRoots: [vscode.Uri.file(path.join(context.extensionPath, 'resources'))],
-        } // Webview options. More on these later.
-        );
+        });
         const webview = currentPanel.webview;
         webview.html = getContent();
         currentPanel.onDidDispose(() => {
@@ -426,90 +421,45 @@ async function chatUI(context) {
         webview.onDidReceiveMessage(message => {
             switch (message.command) {
                 case 'alert':
-                    getDataFromHttps(message.text, message.model)
+                    getDataFromHttps(message.text, message.model, context)
                         .then(data => {
-                        const result = JSON.stringify(data);
-                        // console.log(`获取到的数据为：${result}`);
-                        // vscode.window.showErrorMessage(`${result}`);
-                        // webview.postMessage({ command: 'showAnswer', content: data });
+                        // 处理数据
+                        // ...
                     })
                         .catch(err => {
                         console.error(err);
                     });
                     return;
                 case 'giveLastAnswer':
-                    setLastAnwser(message.text);
+                    // 处理最后的回答
+                    // ...
                     return;
+                // 可能的其他命令处理
+                // ...
             }
         }, undefined, context.subscriptions);
-        const apiKey = context.globalState.get(constant_1.Global.ChatGPT_KEY) || '';
-        let chatContext = [];
-        function setLastAnwser(context) {
-            if (chatContext.length === 2) {
-                chatContext.shift(); // 移除第一个元素
+    }
+}
+async function getDataFromHttps(prompt, model, context) {
+    const url = 'https://han53naoai.openai.azure.com/openai/deployments/HanGPT-4-0613/chat/completions?api-version=2023-07-01-preview';
+    const apiKey = context.globalState.get(constant_1.Global.ChatGPT_KEY) || '';
+    const requestData = {
+        model: model,
+        messages: [{ "role": "user", "content": prompt }]
+    };
+    try {
+        const response = await axios_1.default.post(url, requestData, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
             }
-            chatContext.push(context);
-        }
-        //let model = "gpt-4";
-        async function getDataFromHttps(prompt, model) {
-            const url = 'https://han53naoai.openai.azure.com/openai/deployments/HanGPT-4-0613/chat/completions?api-version=2023-07-01-preview';
-            console.log("model = " + model);
-            var processingQuestion = `前两轮的问题和回答:\`\`\``;
-            if (chatContext != null) {
-                chatContext.forEach(item => {
-                    processingQuestion += item;
-                });
-            }
-            processingQuestion += `\`\`\` Q："${prompt}"`;
-            let question = {
-                //"model": "gpt-3.5-turbo",
-                "model": model,
-                "messages": [{ "role": "user", "content": processingQuestion },
-                    { "role": "system", "content": "回答的开头不需要加A：" }],
-                "stream": true
-            };
-            let postData = JSON.stringify(question);
-            console.log(postData);
-            const response = await axios_1.default.post(url, postData, {
-                responseType: 'stream', headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                }
-            });
-            const transformStream = new stream_1.Transform({
-                transform(chunk, encoding, callback) {
-                    // 在这里进行数据转换
-                    const data = chunk.toString(); // 这里假设转换为字符串
-                    let json = data.replace(/^data: /, '');
-                    const doneString = '\n\ndata: \[DONE\]\n\n';
-                    let isEnd = false;
-                    if (json.endsWith(doneString)) {
-                        isEnd = true;
-                        json = json.replace(/\n\ndata: \[DONE\]\n\n$/, '');
-                    }
-                    json = json.replace(/\n\n"}/, '"}');
-                    //console.log(`ttt:` +json);
-                    //const chatResult = JSON.parse(json);
-                    //console.log(`ttt a :` +json);
-                    const sendData = { command: 'showAnswer', isEnd: isEnd, content: json };
-                    webview.postMessage(sendData);
-                    this.push(data);
-                    callback();
-                }
-            });
-            response.data.pipe(transformStream);
-            let responseData = '';
-            transformStream.on('data', data => {
-                //console.log(data);
-                //webview.postMessage({ command: 'refactor', content: data });
-            });
-            await new Promise(resolve => {
-                transformStream.on('end', () => {
-                    // setLastAnwser(responseData);
-                    console.log("读取结束");
-                });
-            });
-        }
+        });
+        const data = response.data;
+        console.log(data);
+        // ...[处理响应数据]
+    }
+    catch (error) {
+        console.error("Error during API call:", error);
     }
 }
 exports["default"] = chatUI;

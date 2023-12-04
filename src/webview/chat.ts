@@ -1,9 +1,7 @@
 import * as vscode from 'vscode';
 import axios from 'axios';
 import { Global } from '../constant';
-import { Transform } from 'stream';
 import path = require('path');
-
 
 const getContent = (list: any[] = []) => {
   let html = `<!DOCTYPE html>
@@ -389,146 +387,85 @@ const getContent = (list: any[] = []) => {
   </html>`;
   return html;
 };
+
 let currentPanel: vscode.WebviewPanel | undefined = undefined;
+
 async function chatUI(context: vscode.ExtensionContext) {
+    if (currentPanel) {
+        currentPanel.reveal(vscode.ViewColumn.One);
+    } else {
+        currentPanel = vscode.window.createWebviewPanel(
+            'chatgpt',
+            'ChatGPT',
+            vscode.ViewColumn.One,
+            {
+                enableScripts: true,
+                retainContextWhenHidden: true,
+                localResourceRoots: [vscode.Uri.file(path.join(context.extensionPath, 'resources'))],
+            }
+        );
 
-  if (currentPanel) {
-    currentPanel.reveal(vscode.ViewColumn.One);
-  } else {
-    currentPanel = vscode.window.createWebviewPanel(
-      'chatgpt', // Identifies the type of the webview. Used internally
-      'ChatGPT', // Title of the panel displayed to the user
-      vscode.ViewColumn.One, // Editor column to show the new webview panel in.
-      {
-        enableScripts: true,
-        retainContextWhenHidden: true,
-        localResourceRoots: [vscode.Uri.file(path.join(context.extensionPath, 'resources'))],
-      } // Webview options. More on these later.
-    );
+        const webview = currentPanel.webview;
+        webview.html = getContent();
+        currentPanel.onDidDispose(
+            () => {
+                currentPanel = undefined;
+            },
+            undefined,
+            context.subscriptions
+        );
 
-    const webview = currentPanel.webview;
-    webview.html = getContent();
-    currentPanel.onDidDispose(
-      () => {
-        currentPanel = undefined;
-      },
-      undefined,
-      context.subscriptions
-    );
+        webview.onDidReceiveMessage(
+            message => {
+                switch (message.command) {
+                    case 'alert':
+                        getDataFromHttps(message.text, message.model, context)
+                            .then(data => {
+                                // 处理数据
+                                // ...
+                            })
+                            .catch(err => {
+                                console.error(err);
+                            });
+                        return;
+                    case 'giveLastAnswer':
+                        // 处理最后的回答
+                        // ...
+                        return;
+                    // 可能的其他命令处理
+                    // ...
+                }
+            },
+            undefined,
+            context.subscriptions
+        );
+    }
+}
 
-    webview.onDidReceiveMessage(
-      message => {
-        switch (message.command) {
-          case 'alert':
-            getDataFromHttps(message.text,message.model)
-              .then(data => {
-                const result = JSON.stringify(data);
-                // console.log(`获取到的数据为：${result}`);
-                // vscode.window.showErrorMessage(`${result}`);
-
-                // webview.postMessage({ command: 'showAnswer', content: data });
-              })
-              .catch(err => {
-                console.error(err);
-              });
-
-            return;
-          case 'giveLastAnswer':
-            setLastAnwser(message.text);
-            return;
-        }
-      },
-      undefined,
-      context.subscriptions
-    );
+async function getDataFromHttps(prompt: string, model: string, context: vscode.ExtensionContext) {
+    const url = 'https://han53naoai.openai.azure.com/openai/deployments/HanGPT-4-0613/chat/completions?api-version=2023-07-01-preview';
 
     const apiKey = context.globalState.get<string>(Global.ChatGPT_KEY) || '';
 
-    let chatContext: {}[] = [];
-    function setLastAnwser(context: String) {
-      if (chatContext.length === 2) {
-        chatContext.shift(); // 移除第一个元素
-      }
-      chatContext.push(context);
-    }
+    const requestData = {
+        model: model,
+        messages: [{ "role": "user", "content": prompt }]
+    };
 
-    //let model = "gpt-4";
-    async function getDataFromHttps(prompt: string,model: string) {
-      const url = 'https://han53naoai.openai.azure.com/openai/deployments/HanGPT-4-0613/chat/completions?api-version=2023-07-01-preview';
-      console.log("model = " + model);
-
-      var processingQuestion = `前两轮的问题和回答:\`\`\``;
-      if (chatContext != null) {
-        chatContext.forEach(item => {
-          processingQuestion += item
+    try {
+        const response = await axios.post(url, requestData, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            }
         });
-      }
-      processingQuestion += `\`\`\` Q："${prompt}"`
-      let question = {
-        //"model": "gpt-3.5-turbo",
-        "model": model,
-        "messages": [{ "role": "user", "content": processingQuestion }
-          , { "role": "system", "content": "回答的开头不需要加A：" }],
-        "stream": true
-      };
-      let postData = JSON.stringify(question);
-      console.log(postData);
 
-      const response = await axios.post(url, postData, {
-        responseType: 'stream', headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        }
-      });
-
-      const transformStream = new Transform({
-        transform(chunk, encoding, callback) {
-          // 在这里进行数据转换
-          const data = chunk.toString(); // 这里假设转换为字符串
-
-          let json = data.replace(/^data: /, '');
-          const doneString = '\n\ndata: \[DONE\]\n\n';
-          let isEnd = false;
-          if (json.endsWith(doneString)) {
-            isEnd = true;
-            json = json.replace(/\n\ndata: \[DONE\]\n\n$/, '');
-          }
-          json = json.replace(/\n\n"}/, '"}');
-          //console.log(`ttt:` +json);
-          //const chatResult = JSON.parse(json);
-          //console.log(`ttt a :` +json);
-          const sendData = { command: 'showAnswer', isEnd: isEnd, content: json };
-          webview.postMessage(sendData);
-
-          this.push(data);
-          callback();
-        }
-      });
-
-      response.data.pipe(transformStream);
-
-      let responseData = '';
-      transformStream.on('data', data => {
-
-        //console.log(data);
-        //webview.postMessage({ command: 'refactor', content: data });
-      });
-
-      await new Promise(resolve => {
-        transformStream.on('end', () => {
-          // setLastAnwser(responseData);
-          console.log("读取结束");
-        });
-      });
+        const data = response.data;
+        console.log(data);
+        // ...[处理响应数据]
+    } catch (error) {
+        console.error("Error during API call:", error);
     }
-
-
-  }
-
-
-
-
-
 }
 
 export default chatUI;
